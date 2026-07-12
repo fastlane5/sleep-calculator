@@ -3,36 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>수면 시간 계산기</title>
+    <title>지금 자면 언제 일어나지?</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
         
-        :root {
-            /* 창 해상도에 따라 최저 13px에서 최대 16px까지 부드럽게 기본 폰트 크기 조절 */
-            font-size: clamp(13px, 0.35vw + 11.5px, 16px);
-        }
-
         body {
             font-family: 'Pretendard', sans-serif;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none; /* 모바일 드래그 시 브라우저 스크롤/바운스 완벽 방지 */
-            transition: background 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        /* [해상도 비례 자동 폰트스케일 가속 적용] */
-        .fluid-title {
-            font-size: clamp(1.15rem, 1.2vw + 0.85rem, 1.5rem);
-        }
-        .fluid-time {
-            font-size: clamp(1.2rem, 1.8vw + 0.9rem, 1.65rem);
-        }
-        .fluid-badge {
-            font-size: clamp(9px, 0.15vw + 8.5px, 11px);
-        }
-        .fluid-desc {
-            font-size: clamp(10px, 0.1vw + 9.5px, 11px);
+            touch-action: none; /* 모바일 드래그 시 브라우저 스크롤/바운스 방지 */
+            transition: background 1.2s cubic-bezier(0.16, 1, 0.3, 1); /* 일출/야간 배경 부드러운 전환 */
         }
 
         /* 글래스모피즘 효과 커스텀 정의 */
@@ -69,6 +50,7 @@
             -webkit-appearance: none;
             height: 24px;
             width: 24px;
+            /* 아래를 정교하게 가리키는 삼각형 화살표 */
             background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e9d5ff'><path d='M12 21l-10-14h20z'/></svg>");
             background-size: contain;
             background-repeat: no-repeat;
@@ -119,7 +101,7 @@
         }
     </style>
 </head>
-<body id="dynamic-bg" class="bg-gradient-to-br from-slate-950 via-[#0a0f24] to-[#120a24] text-slate-100 min-h-screen flex items-center justify-center p-3 sm:p-6 overflow-hidden relative">
+<body id="dynamic-bg" class="bg-gradient-to-br from-slate-950 via-[#0a0f24] to-[#120a24] text-slate-100 min-h-screen flex items-center justify-center p-4 overflow-y-auto relative">
 
     <!-- 밤하늘 별 레이어 (야간 Vibe 활성화 시 은은하게 비침) -->
     <div class="stars absolute inset-0 opacity-20 pointer-events-none"></div>
@@ -127,63 +109,69 @@
     <!-- 밤하늘을 수놓는 시뮬레이션 달 (한국 기준 위치 연동) -->
     <div id="sky-moon" class="absolute pointer-events-none transition-all duration-1000 ease-out flex flex-col items-center justify-center z-0" style="top: 15%; left: 75%; transform: translate(-50%, -50%);">
         <!-- 달의 발광 효과 가미 -->
-        <div class="relative w-16 sm:w-24 h-16 sm:h-24 flex items-center justify-center">
+        <div class="relative w-24 h-24 flex items-center justify-center">
             <div id="moon-glow" class="absolute inset-0 bg-yellow-100/10 rounded-full blur-[24px] scale-125 transition-all duration-1000"></div>
-            <svg id="moon-svg" width="48" height="48" viewBox="0 0 100 100" class="sm:w-[64px] sm:h-[64px] drop-shadow-[0_0_15px_rgba(254,240,138,0.45)]">
-                <!-- 달의 어두운 영역 -->
+            <svg id="moon-svg" width="64" height="64" viewBox="0 0 100 100" class="drop-shadow-[0_0_15px_rgba(254,240,138,0.45)]">
+                <!-- 달의 어두운 영역 (미세하게 보이는 음영) -->
                 <circle cx="50" cy="50" r="45" fill="#1e293b" opacity="0.6"/>
-                <!-- 달의 실제 일조 영역 -->
+                <!-- 달의 실제 일조 영역 (Dynamic Path) -->
                 <path id="moon-light-path" d="" fill="#fef08a" />
             </svg>
         </div>
     </div>
 
-    <!-- 글로벌 배경에 빛나는 은은한 오라 -->
-    <div id="glow-1" class="fixed top-1/4 left-1/4 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-indigo-600/10 rounded-full blur-[100px] sm:blur-[120px] pointer-events-none transition-all duration-1000"></div>
-    <div id="glow-2" class="fixed bottom-1/4 right-1/4 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-purple-600/10 rounded-full blur-[100px] sm:blur-[120px] pointer-events-none transition-all duration-1000"></div>
+    <!-- 글로벌 배경에 빛나는 은은한 오라 (일출/밤하늘 조명 효과 강화) -->
+    <div id="glow-1" class="fixed top-1/4 left-1/4 w-[350px] h-[350px] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none transition-all duration-1000"></div>
+    <div id="glow-2" class="fixed bottom-1/4 right-1/4 w-[350px] h-[350px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none transition-all duration-1000"></div>
 
-    <div class="glass-panel rounded-3xl w-full max-w-md p-5 sm:p-6 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] relative overflow-hidden z-10 my-auto">
+    <div class="glass-panel rounded-3xl w-full max-w-md p-5 sm:p-6 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] relative overflow-hidden z-10 my-4">
 
-        <!-- 타이틀 세션 -->
-        <h1 class="fluid-title font-semibold text-center mb-6 sm:mb-8 text-slate-200 flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 w-5 h-5 sm:w-6 sm:h-6"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            수면 시간 계산기
+        <!-- 타이틀 세션 (새로운 주소 링크 연동 및 호버 효과 적용) -->
+        <h1 class="text-xl font-bold text-center mb-8 text-slate-200 flex items-center justify-center">
+            <a href="https://litt.ly/meetatthetop" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-indigo-300 transition-colors group cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 group-hover:scale-110 transition-transform"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                <span class="group-hover:underline decoration-indigo-400 decoration-2 underline-offset-4">지금 자면 언제 일어나지?</span>
+            </a>
         </h1>
 
-        <!-- 메인 시간 표시기 -->
-        <div class="flex justify-between items-center mb-8 sm:mb-10 px-1 gap-2">
-            <div class="text-center w-[30%] min-w-[80px]">
+        <!-- 메인 시간 표시기 (시간 2줄 깨짐 및 잘림 현상 제거) -->
+        <div class="flex justify-between items-center mb-10 px-1 gap-2">
+            <div class="text-center w-[30%] min-w-[85px] sm:w-[110px]">
                 <p class="text-slate-400 text-[10px] sm:text-xs mb-1 font-medium tracking-wider">취침 시간</p>
-                <p id="bedtime-display" class="fluid-time font-extrabold tracking-tight text-white transition-all">오후 10:00</p>
+                <p id="bedtime-display" class="text-base sm:text-xl font-extrabold tracking-tight text-white transition-all whitespace-nowrap">오후 10:00</p>
             </div>
             
-            <!-- 연결 타임 뱃지 -->
-            <div class="flex-1 flex flex-col items-center justify-center px-1 overflow-hidden">
-                <div id="recommend-badge" class="mb-2 fluid-badge font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-[0_0_8px_rgba(99,102,241,0.3)] transition-all duration-300 whitespace-nowrap">
+            <!-- 연결 타임 뱃지 (overflow-hidden 제거 및 레이아웃 안정화로 글자 잘림 완전 차단) -->
+            <div class="flex-1 flex flex-col items-center justify-center px-1 relative z-20">
+                <div id="recommend-badge" class="mb-2 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-[0_0_8px_rgba(99,102,241,0.3)] transition-all duration-300 whitespace-nowrap">
                     💡 추천 수면 (7~9시간)
                 </div>
-                <div class="w-full h-[1px] bg-white/15 relative flex items-center justify-center">
-                    <span id="duration-text" class="bg-slate-950/95 text-[10px] sm:text-xs font-semibold text-slate-300 border border-white/10 px-2.5 sm:px-3 py-1 rounded-full absolute -top-3.5 shadow-md whitespace-nowrap">
+                <!-- 가로 가이드 선 및 수면 시간 뱃지 겹침 구조 개편 -->
+                <div class="w-full h-8 relative flex items-center justify-center">
+                    <!-- 중앙 연결선 -->
+                    <div class="absolute w-full h-[1px] bg-white/15 left-0 top-1/2 -translate-y-1/2 z-0"></div>
+                    <!-- 실제 수면 시간 데이터 뱃지 -->
+                    <span id="duration-text" class="relative z-10 bg-slate-950/95 text-[10px] sm:text-xs font-semibold text-slate-300 border border-white/10 px-2 sm:px-3 py-1 rounded-full shadow-md whitespace-nowrap">
                         8시간 30분 수면
                     </span>
                 </div>
             </div>
 
-            <div class="text-center w-[30%] min-w-[80px]">
+            <div class="text-center w-[30%] min-w-[85px] sm:w-[110px]">
                 <p class="text-slate-400 text-[10px] sm:text-xs mb-1 font-medium tracking-wider">기상 시간</p>
-                <p id="waketime-display" class="fluid-time font-extrabold tracking-tight text-indigo-300 transition-all">오전 06:30</p>
+                <p id="waketime-display" class="text-base sm:text-xl font-extrabold tracking-tight text-indigo-300 transition-all whitespace-nowrap">오전 06:30</p>
             </div>
         </div>
 
         <!-- 가로 타임라인 트랙 -->
-        <div class="mb-10 sm:mb-12">
-            <div class="flex justify-between text-[10px] sm:text-[11px] text-slate-400/80 mb-2 px-1 font-medium">
+        <div class="mb-12">
+            <div class="flex justify-between text-[11px] text-slate-400/80 mb-2 px-1 font-medium">
                 <span>낮 12시</span>
                 <span>자정</span>
                 <span>다음날 낮 12시</span>
             </div>
             
-            <div id="timeline-track" class="w-full h-14 sm:h-16 bg-black/35 rounded-2xl relative shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] border border-white/5 cursor-pointer">
+            <div id="timeline-track" class="w-full h-16 bg-black/35 rounded-2xl relative shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] border border-white/5 cursor-pointer">
                 <!-- 드래그 수면 막대 (시작 위치: 41.67%) -->
                 <div id="sleep-thumb" class="absolute top-0 h-full sleep-bar-gradient rounded-2xl flex items-center justify-center transition-all duration-75 select-none" style="left: 41.67%; width: 35.41%;">
                     
@@ -192,11 +180,11 @@
                     
                     <!-- 드래그 손잡이 (그립 디테일) -->
                     <div class="flex flex-col gap-1 items-center justify-center">
-                        <div class="w-1.5 h-5 sm:h-6 bg-white/45 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.3)]"></div>
+                        <div class="w-1.5 h-6 bg-white/45 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.3)]"></div>
                     </div>
 
-                    <!-- [모바일 터치 범위 확장] 수면 막대 우측 끝 드래그 핸들 (목표 수면 시간 조절용) -->
-                    <div id="sleep-resizer" class="absolute right-0 top-0 h-full w-8 cursor-ew-resize flex items-center justify-end pr-1.5 z-20 group/resizer">
+                    <!-- [신규 추가] 수면 막대 우측 끝 드래그 핸들 (목표 수면 시간 조절용) -->
+                    <div id="sleep-resizer" class="absolute right-0 top-0 h-full w-6 cursor-ew-resize flex items-center justify-center z-20 group/resizer">
                         <!-- 손잡이 돌기 디테일 -->
                         <div class="w-1.5 h-7 bg-white/30 rounded-full group-hover/resizer:bg-white/70 transition-colors shadow-sm"></div>
                     </div>
@@ -216,20 +204,20 @@
                 </div>
             </div>
             
-            <p class="text-center fluid-desc text-slate-400 mt-3 flex items-center justify-center gap-1 px-1">
+            <p class="text-center text-[10px] sm:text-[11px] text-slate-400 mt-3 flex items-center justify-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-pulse flex-shrink-0"><path d="m15 18-6-6 6-6"/></svg>
-                <span class="truncate">막대를 좌우로 조율하고, 우측 끝을 늘려 맞춰보세요</span>
+                <span class="truncate">막대를 좌우로 드래그하고, 우측 가장자리를 조절하세요</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-pulse flex-shrink-0"><path d="m9 18 6-6-6-6"/></svg>
             </p>
         </div>
 
         <!-- 설정 컨트롤러 -->
-        <div class="glass-card p-4 sm:p-5 rounded-2xl mb-5 sm:mb-6">
-            <div class="flex justify-between items-center mb-3 sm:mb-4">
-                <label class="text-xs sm:text-sm font-semibold text-slate-300">목표 수면 시간</label>
+        <div class="glass-card p-5 rounded-2xl mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <label class="text-sm font-semibold text-slate-300">목표 수면 시간</label>
                 <div class="flex items-center gap-2">
-                    <span id="duration-badge-alert" class="hidden text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">부족함</span>
-                    <span id="target-duration-display" class="text-xs sm:text-sm font-extrabold text-indigo-300">8시간 30분</span>
+                    <span id="duration-badge-alert" class="hidden text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">부족함</span>
+                    <span id="target-duration-display" class="text-sm font-extrabold text-indigo-300">8시간 30분</span>
                 </div>
             </div>
             
@@ -238,8 +226,8 @@
                 <!-- 트랙 및 화살표 thumb 슬라이더 -->
                 <input type="range" id="duration-slider" min="360" max="720" step="10" value="510" class="relative z-10">
                 
-                <!-- 동적 시간 표시용 룰러 눈금 영역 -->
-                <div class="relative w-full h-8 mt-2 text-[9px] sm:text-[10px] text-slate-500 font-semibold select-none">
+                <!-- 동적 시간 표시용 룰러 눈금 영역 (오정렬 문제를 수학적 오프셋 12px 처리로 완전 극복) -->
+                <div class="relative w-full h-8 mt-2 text-[10px] text-slate-500 font-semibold select-none">
                     <!-- 오프셋 컨테이너 -->
                     <div class="absolute left-[12px] right-[12px] h-full">
                         <!-- 6시간 -->
@@ -252,24 +240,24 @@
                             <div class="w-[1px] h-1 bg-indigo-500/80 mb-1"></div>
                             <span class="text-indigo-400">7h</span>
                         </div>
-                        <!-- 7.5시간 -->
+                        <!-- 7.5시간 (추천 30분 단위) -->
                         <div class="absolute flex flex-col items-center -translate-x-1/2" style="left: 25%;">
                             <div class="w-[1px] h-1.5 bg-emerald-500/70 mb-1"></div>
-                            <span class="text-emerald-500/70 text-[8px] sm:text-[9px]">7.5</span>
+                            <span class="text-emerald-500/70 text-[9px]">7.5</span>
                         </div>
                         <!-- 8시간 -->
                         <div class="absolute flex flex-col items-center -translate-x-1/2" style="left: 33.33%;">
                             <div class="w-[1px] h-1.5 bg-indigo-500/80 mb-1"></div>
                             <span class="text-indigo-400">8h</span>
                         </div>
-                        <!-- 8.5시간 -->
+                        <!-- 8.5시간 (추천 30분 단위) -->
                         <div class="absolute flex flex-col items-center -translate-x-1/2" style="left: 41.67%;">
                             <div class="w-[1px] h-1.5 bg-emerald-500/70 mb-1"></div>
-                            <span class="text-emerald-500/70 text-[8px] sm:text-[9px]">8.5</span>
+                            <span class="text-emerald-500/70 text-[9px]">8.5</span>
                         </div>
                         <!-- 9시간 -->
                         <div class="absolute flex flex-col items-center -translate-x-1/2" style="left: 50%;">
-                            <div class="w-[1px] h-1.5 bg-indigo-500/80 mb-1"></div>
+                            <div class="w-[1px] h-1 bg-indigo-500/80 mb-1"></div>
                             <span class="text-indigo-400">9h</span>
                         </div>
                         <!-- 10시간 -->
@@ -292,45 +280,38 @@
             </div>
         </div>
 
-        <!-- 내일 날짜 & 한국 일출 & 달 월령 데이터 정보 가이드 카드 -->
-        <div class="glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col gap-3 text-[11px] sm:text-xs text-slate-300 border border-white/10 shadow-lg">
-            <!-- 날짜 및 일출 -->
-            <div class="flex items-center justify-between gap-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-sm sm:text-base">📅</span>
-                    <div class="flex flex-col">
-                        <span class="text-[8px] sm:text-[9px] text-slate-400 font-medium">내일 날짜</span>
-                        <span id="date-display" class="font-bold text-slate-200">2026년 7월 13일 (월)</span>
-                    </div>
-                </div>
-                <div class="w-px h-6 bg-white/10"></div>
-                <div class="flex items-center gap-2">
-                    <span class="text-sm sm:text-base">🌅</span>
-                    <div class="flex flex-col">
-                        <span class="text-[8px] sm:text-[9px] text-slate-400 font-medium">내일 일출 (한국 기준)</span>
-                        <span id="sunrise-display" class="font-bold text-amber-300">오전 05:22</span>
-                    </div>
+        <!-- [모바일 완벽 최적화] 내일 날짜 & 한국 일출 & 달 월령 2x2 그리드 카드 -->
+        <div class="glass-card p-3 sm:p-4 rounded-2xl grid grid-cols-2 gap-3 text-[11px] sm:text-xs text-slate-300 border border-white/10 shadow-lg">
+            <!-- 날짜 -->
+            <div class="flex items-center gap-2">
+                <span class="text-base flex-shrink-0">📅</span>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] text-slate-400 font-medium">내일 날짜</span>
+                    <span id="date-display" class="font-bold text-slate-200 truncate text-[10px] sm:text-xs">2026년 7월 13일 (월)</span>
                 </div>
             </div>
-            
-            <div class="w-full h-[1px] bg-white/5"></div>
-
-            <!-- 한국 기준 월령 및 달의 고도 데이터 -->
-            <div class="flex items-center justify-between gap-1">
-                <div class="flex items-center gap-2">
-                    <span class="text-sm sm:text-base">🌙</span>
-                    <div class="flex flex-col">
-                        <span class="text-[8px] sm:text-[9px] text-slate-400 font-medium">달의 모양 (한국 기준)</span>
-                        <span id="moon-phase-name" class="font-bold text-yellow-200">초승달</span>
-                    </div>
+            <!-- 일출 -->
+            <div class="flex items-center gap-2 border-l border-white/10 pl-3">
+                <span class="text-base flex-shrink-0">🌅</span>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] text-slate-400 font-medium">내일 일출</span>
+                    <span id="sunrise-display" class="font-bold text-amber-300 text-[10px] sm:text-xs">오전 05:22</span>
                 </div>
-                <div class="w-px h-6 bg-white/10"></div>
-                <div class="flex items-center gap-2">
-                    <span class="text-base">📈</span>
-                    <div class="flex flex-col">
-                        <span class="text-[8px] sm:text-[9px] text-slate-400 font-medium">달의 고도 / 방위</span>
-                        <span id="moon-alt-display" class="font-bold text-indigo-200">고도 42° (동쪽)</span>
-                    </div>
+            </div>
+            <!-- 달의 모양 -->
+            <div class="flex items-center gap-2 border-t border-white/5 pt-2">
+                <span class="text-base flex-shrink-0">🌙</span>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] text-slate-400 font-medium">달의 모양 (한국)</span>
+                    <span id="moon-phase-name" class="font-bold text-yellow-200 truncate text-[10px] sm:text-xs">초승달</span>
+                </div>
+            </div>
+            <!-- 달의 고도 -->
+            <div class="flex items-center gap-2 border-t border-white/5 pt-2 border-l border-white/10 pl-3">
+                <span class="text-base flex-shrink-0">📈</span>
+                <div class="flex flex-col min-w-0">
+                    <span class="text-[9px] text-slate-400 font-medium">달의 고도</span>
+                    <span id="moon-alt-display" class="font-bold text-indigo-200 truncate text-[10px] sm:text-xs">고도 42°</span>
                 </div>
             </div>
         </div>
@@ -390,7 +371,7 @@
             sunriseDisplay.textContent = "오전 05:22";
         }
 
-        // --- 천문학적 달 위상(Moon Phase) 계산 함수 ---
+        // --- 천문학적 달 위상(Moon Phase) 계산 함수 (정확한 날짜 기준) ---
         function calculateMoonPhase(date) {
             let year = date.getFullYear();
             let month = date.getMonth() + 1;
@@ -404,42 +385,44 @@
 
             const c = 365.25 * year;
             const e = 30.6 * month;
-            let jd = c + e + day - 694039.09; 
-            jd /= 29.5305882; 
+            let jd = c + e + day - 694039.09; // 0년 대비 기준 일수 계산
+            jd /= 29.5305882; // 완벽한 합삭기 주기로 나누기
             let b = Math.floor(jd);
-            let phase = jd - b; 
+            let phase = jd - b; // 0.0 ~ 1.0 (0=신월/합삭, 0.5=보름달/망)
             return phase;
         }
 
-        // 달 이름 매핑
+        // 달 이름 및 한국 천문 분석 텍스트 매핑
         function getMoonPhaseName(phase) {
             if (phase < 0.03 || phase > 0.97) return "삭 (신월)";
             if (phase >= 0.03 && phase < 0.22) return "초승달";
             if (phase >= 0.22 && phase < 0.28) return "상현달";
-            if (phase >= 0.28 && phase < 0.47) return "차오르는 달 (조명률 70%)";
+            if (phase >= 0.28 && phase < 0.47) return "차오르는 달";
             if (phase >= 0.47 && phase < 0.53) return "보름달 (망)";
-            if (phase >= 0.53 && phase < 0.72) return "이지러지는 달 (조명률 70%)";
+            if (phase >= 0.53 && phase < 0.72) return "이지러지는 달";
             if (phase >= 0.72 && phase < 0.78) return "하현달";
             return "그믐달";
         }
 
-        // SVG Moon Phase Path 생성기
+        // 정밀한 SVG Moon Phase Path 생성기 (두 개의 구면 호 연산으로 일조 경계 표현)
         function updateMoonSvg(phase) {
-            const r = 45; 
+            const r = 45; // 반경
             const cx = 50;
             const cy = 50;
             
             if (phase < 0.02 || phase > 0.98) {
-                moonSvgPath.setAttribute("d", ""); 
+                moonSvgPath.setAttribute("d", ""); // 신월은 보이지 않음
                 return;
             }
             if (phase > 0.48 && phase < 0.52) {
+                // 완벽한 구형 보름달
                 moonSvgPath.setAttribute("d", `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx} ${cy + r} A ${r} ${r} 0 1 1 ${cx} ${cy - r}`);
                 return;
             }
 
             let rx = r;
             if (phase < 0.5) {
+                // Waxing (우측 조명)
                 if (phase < 0.25) {
                     rx = r * (1 - 4 * phase);
                     moonSvgPath.setAttribute("d", `M 50 5 A 45 45 0 0 1 50 95 A ${rx} 45 0 0 0 50 5`);
@@ -448,6 +431,7 @@
                     moonSvgPath.setAttribute("d", `M 50 5 A 45 45 0 0 1 50 95 A ${rx} 45 0 0 1 50 5`);
                 }
             } else {
+                // Waning (좌측 조명)
                 const p = phase - 0.5;
                 if (p < 0.25) {
                     rx = r * (1 - 4 * p);
@@ -459,6 +443,7 @@
             }
         }
 
+        // 시간 포맷팅 헬퍼 함수 (낮 12시 기준 분 단위를 오전/오후 12시간제로 변환)
         function formatTime(minutesFromNoon) {
             let absoluteMinutes = (12 * 60 + minutesFromNoon) % 1440;
             if (absoluteMinutes < 0) absoluteMinutes += 1440;
@@ -474,6 +459,7 @@
             return `${period} ${displayHours}:${displayMins}`;
         }
 
+        // 분 단위를 한글 텍스트(시간/분)로 포맷팅
         function formatDuration(minutes) {
             const h = Math.floor(minutes / 60);
             const m = minutes % 60;
@@ -489,10 +475,12 @@
             return [r, g, b];
         }
 
+        // RGB를 Hex 컬러로 인코딩
         function rgbToHex(r, g, b) {
             return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
         }
 
+        // 그라데이션 단계 간 보간 계산기
         function interpolateColor(color1, color2, factor) {
             const rgb1 = hexToRgb(color1);
             const rgb2 = hexToRgb(color2);
@@ -504,6 +492,7 @@
             return rgbToHex(r, g, b);
         }
 
+        // 기상 시간에 연동하는 하늘 조도 및 달 궤적 계산
         function updateSkyAndMoon(wakeMinutesFromNoon) {
             let absMins = (12 * 60 + wakeMinutesFromNoon) % 1440;
             if (absMins < 0) absMins += 1440;
@@ -512,6 +501,7 @@
             let glow1Color, glow2Color;
             let skyState = "night"; 
 
+            // 오후 8시 30분 ~ 밤 11시 59분 (야간 칠흑 테마)
             if (absMins >= 1230 && absMins <= 1439) {
                 bgStart = "#01030a";
                 bgMid = "#040712";
@@ -520,6 +510,7 @@
                 glow2Color = "rgba(147, 51, 234, 0.05)";
                 skyState = "dark-night";
             }
+            // 깊은 새벽 (00:00 ~ 04:00)
             else if (absMins < 240) {
                 bgStart = "#020617";
                 bgMid = "#070b19";
@@ -528,6 +519,7 @@
                 glow2Color = "rgba(168, 85, 247, 0.08)";
                 skyState = "night";
             } 
+            // 여명 전 푸른 새벽 (04:00 ~ 05:22)
             else if (absMins < 322) {
                 const factor = (absMins - 240) / (322 - 240);
                 bgStart = interpolateColor("#020617", "#0a0a26", factor);
@@ -537,6 +529,7 @@
                 glow2Color = `rgba(236, 72, 153, ${0.08 + factor * 0.1})`;
                 skyState = "dawn";
             } 
+            // 황금빛 일출 (05:22 ~ 07:00)
             else if (absMins < 420) {
                 const factor = (absMins - 322) / (420 - 322);
                 bgStart = interpolateColor("#0a0a26", "#1c1445", factor);
@@ -546,6 +539,7 @@
                 glow2Color = `rgba(236, 72, 153, ${0.18 - factor * 0.05})`;
                 skyState = "sunrise";
             } 
+            // 아침 햇살 (07:00 ~ 09:00)
             else if (absMins < 540) {
                 const factor = (absMins - 420) / (540 - 420);
                 bgStart = interpolateColor("#1c1445", "#0b1c3d", factor);
@@ -555,6 +549,7 @@
                 glow2Color = "rgba(253, 224, 71, 0.12)";
                 skyState = "morning";
             } 
+            // 화창한 낮 및 저녁
             else {
                 bgStart = "#09142b";
                 bgMid = "#0369a1";
@@ -568,7 +563,7 @@
             glow1.style.backgroundColor = glow1Color;
             glow2.style.backgroundColor = glow2Color;
 
-            // 한국(북위 36° 기준) 달 위치 계산
+            // 한국(북위 36°) 기상 시간대 달 궤적 연산
             const moonPhase = calculateMoonPhase(tomorrowGlobal);
             updateMoonSvg(moonPhase);
             moonPhaseNameDisplay.textContent = getMoonPhaseName(moonPhase);
@@ -593,11 +588,11 @@
                 moonContainer.style.top = `${verticalPercent}%`;
                 moonGlow.style.opacity = `${0.3 + altitudeFactor * 0.7}`;
 
-                const directionStr = diffHour < 0 ? "동쪽 하늘" : (diffHour > 1.5 ? "서쪽 하늘" : "남쪽 상공");
+                const directionStr = diffHour < 0 ? "동쪽" : (diffHour > 1.5 ? "서쪽" : "남쪽");
                 moonAltDisplay.textContent = `고도 ${altitudeDeg}° (${directionStr})`;
             } else {
                 moonContainer.style.opacity = "0";
-                moonAltDisplay.textContent = "지평선 아래 위치함";
+                moonAltDisplay.textContent = "지평선 아래";
             }
         }
 
@@ -612,89 +607,105 @@
             targetDurationDisplay.textContent = formattedDuration;
             durationSlider.value = state.durationMinutes;
 
+            // 7~9시간 범위(420분 ~ 540분) 추천 로직 시각화 활성화
             const isRecommended = state.durationMinutes >= 420 && state.durationMinutes <= 540;
             if (isRecommended) {
-                recommendBadge.className = "mb-2 fluid-badge font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)] opacity-100 scale-100 transition-all duration-300 whitespace-nowrap";
+                recommendBadge.className = "mb-2 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)] opacity-100 scale-100 transition-all duration-300 whitespace-nowrap";
                 recommendBadge.textContent = "💡 추천 수면 (7~9시간)";
                 durationBadgeAlert.className = "hidden";
             } else {
-                recommendBadge.className = "mb-2 fluid-badge font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700 opacity-60 scale-95 transition-all duration-300 whitespace-nowrap";
+                recommendBadge.className = "mb-2 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700 opacity-60 scale-95 transition-all duration-300 whitespace-nowrap";
                 recommendBadge.textContent = "일반 수면";
                 if (state.durationMinutes < 420) {
-                    durationBadgeAlert.className = "text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+                    durationBadgeAlert.className = "text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
                     durationBadgeAlert.textContent = "약간 부족";
                 } else {
-                    durationBadgeAlert.className = "text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30";
+                    durationBadgeAlert.className = "text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30";
                     durationBadgeAlert.textContent = "여유로움";
                 }
             }
 
+            // 막대 위치와 너비 조정
             const leftPercent = (state.bedtimeMinutes / TOTAL_MINUTES) * 100;
             const widthPercent = (state.durationMinutes / TOTAL_MINUTES) * 100;
             
             thumb.style.left = `${leftPercent}%`;
             thumb.style.width = `${widthPercent}%`;
 
+            // 기상 시간에 따라 하늘 배경 및 달 위치 자동 연동
             updateSkyAndMoon(wakeMin);
         }
 
-        // --- 하단 슬라이더 제어 이벤트 ---
+        // --- 슬라이더 제어 이벤트 ---
         durationSlider.addEventListener('input', (e) => {
             const newDuration = parseInt(e.target.value);
+            
+            // 막대가 타임라인 오른편 경계를 초과하지 못하도록 제한
             if (state.bedtimeMinutes + newDuration > TOTAL_MINUTES) {
                 state.bedtimeMinutes = TOTAL_MINUTES - newDuration;
             }
+            
             state.durationMinutes = newDuration;
             updateUI();
         });
 
-        // --- 드래그 및 크기 조절 기능 구현 (실시간 width 트래킹) ---
+        // --- 드래그 기능 구현 (Pointer Events 적용으로 모바일 완벽 대응) ---
         let dragCtx = null;
         let resizeCtx = null;
 
+        // 수면 막대 전체 드래그 (취침 시간 이동) 시작
         function startDrag(e) {
             e.stopPropagation();
+            
             const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0].clientX);
             if (clientX === undefined) return;
 
             dragCtx = {
                 startX: clientX,
-                startBedtime: state.bedtimeMinutes
+                startBedtime: state.bedtimeMinutes,
+                trackWidth: track.clientWidth
             };
             
-            thumb.classList.remove('transition-all');
+            thumb.classList.remove('transition-all'); // 드래그 중 딜레이 방지
             document.body.style.cursor = 'grabbing';
         }
 
+        // 수면 막대 우측 핸들 드래그 (목표 수면 시간 조절) 시작
         function startResize(e) {
-            e.stopPropagation();
+            e.stopPropagation(); // thumb의 드래그 이벤트 전파 방지
+            
             const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0].clientX);
             if (clientX === undefined) return;
 
             resizeCtx = {
                 startX: clientX,
                 startDuration: state.durationMinutes,
-                bedtime: state.bedtimeMinutes
+                bedtime: state.bedtimeMinutes,
+                trackWidth: track.clientWidth
             };
 
             thumb.classList.remove('transition-all');
             document.body.style.cursor = 'ew-resize';
         }
 
+        // 통합 드래그/리사이즈 이동 핸들러
         function onMove(e) {
             const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0].clientX);
             if (clientX === undefined) return;
 
-            const currentTrackWidth = track.clientWidth; // 실시간 윈도우 크기 변화에 무조건 대응
-
+            // 1. 목표 수면 시간 크기 조정 중일 때
             if (resizeCtx) {
                 const deltaX = clientX - resizeCtx.startX;
-                const deltaMinutes = (deltaX / currentTrackWidth) * TOTAL_MINUTES;
+                const deltaMinutes = (deltaX / resizeCtx.trackWidth) * TOTAL_MINUTES;
                 let newDuration = resizeCtx.startDuration + deltaMinutes;
 
+                // 10분 스냅
                 newDuration = Math.round(newDuration / SNAP_MINUTES) * SNAP_MINUTES;
-                newDuration = Math.max(360, Math.min(newDuration, 720)); // 최소 6시간 ~ 최대 12시간
 
+                // 6시간(360분) ~ 12시간(720분) 제약 조건 반영
+                newDuration = Math.max(360, Math.min(newDuration, 720));
+
+                // 타임라인 우측 한계를 넘지 않도록 제한
                 if (resizeCtx.bedtime + newDuration > TOTAL_MINUTES) {
                     newDuration = TOTAL_MINUTES - resizeCtx.bedtime;
                 }
@@ -704,9 +715,10 @@
                 return;
             }
 
+            // 2. 전체 막대 위치 이동 중일 때
             if (dragCtx) {
                 const deltaX = clientX - dragCtx.startX;
-                const deltaMinutes = (deltaX / currentTrackWidth) * TOTAL_MINUTES;
+                const deltaMinutes = (deltaX / dragCtx.trackWidth) * TOTAL_MINUTES;
                 let newBedtime = dragCtx.startBedtime + deltaMinutes;
 
                 newBedtime = Math.round(newBedtime / SNAP_MINUTES) * SNAP_MINUTES;
@@ -732,10 +744,11 @@
         thumb.addEventListener('mousedown', startDrag);
         thumb.addEventListener('touchstart', startDrag, { passive: true });
 
-        // 우측 리사이저 바인딩
+        // 우측 조절기 드래그 바인딩
         resizer.addEventListener('mousedown', startResize);
         resizer.addEventListener('touchstart', startResize, { passive: true });
 
+        // 글로벌 포인터 무브/업 이벤트 바인딩
         document.addEventListener('mousemove', onMove);
         document.addEventListener('touchmove', onMove, { passive: false });
 
@@ -743,7 +756,7 @@
         document.addEventListener('touchend', endDrag);
         document.addEventListener('touchcancel', endDrag);
 
-        // 빈 트랙 클릭 시 중앙 이동
+        // 빈 공간 클릭 점프
         track.addEventListener('click', (e) => {
             if (e.target === thumb || thumb.contains(e.target)) return;
             
@@ -759,9 +772,6 @@
             
             updateUI();
         });
-
-        // 브라우저 윈도우 리사이즈 대응 강제 재렌더링
-        window.addEventListener('resize', updateUI);
 
         // 웹 로드 초기 연동 실행
         initTomorrowDate();
